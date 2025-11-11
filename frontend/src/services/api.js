@@ -1,4 +1,4 @@
-const API_BASE_URL = "/api"; // Proxy handles routing to backend
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const api = {
   get: async (path, params = {}, options = {}) => {
@@ -9,18 +9,14 @@ const api = {
       const errorData = await response.json();
       throw new Error(errorData.msg || `API Error: ${response.statusText}`);
     }
-    if (options.responseType === "blob") {
-      return response.blob();
-    }
+    if (options.responseType === "blob") return response.blob();
     return response.json();
   },
 
   post: async (path, data) => {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
@@ -33,9 +29,7 @@ const api = {
   put: async (path, data) => {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
     if (!response.ok) {
