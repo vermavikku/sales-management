@@ -1,0 +1,133 @@
+body {
+  font-family: "Inter", sans-serif;
+  background-color: #f8f9fa; /* Light gray background */
+  color: #343a40; /* Darker text for better readability */
+}
+
+.app-container {
+  background-color: #f8f9fa; /* Match body background */
+  min-height: 100vh; /* Ensure it takes full viewport height */
+}
+
+.module-card {
+  background-color: #ffffff; /* White background for the main content area */
+  border-radius: 0.5rem; /* Rounded corners */
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075); /* Subtle shadow */
+  padding: 2rem; /* Ample padding */
+}
+
+/* Custom colors for card icon backgrounds */
+.bg-primary-subtle {
+  background-color: #e0f7fa !important; /* Light cyan */
+}
+
+.bg-success-subtle {
+  background-color: #e8f5e9 !important; /* Light mint green */
+}
+
+/* Table styling */
+.table thead th {
+  background-color: #f1f4f8; /* Light blue-gray for table header */
+  color: #5a6169; /* Darker text for header */
+  font-weight: 600;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.table tbody tr {
+  background-color: #ffffff; /* White background for rows */
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+  background-color: #fcfdff; /* Very light blue for odd rows */
+}
+
+.table-hover tbody tr:hover {
+  background-color: #f0f4f8; /* Slightly darker hover for rows */
+}
+
+/* Pagination styling */
+.pagination .page-item .page-link {
+  border-radius: 0.375rem;
+  margin: 0 0.25rem;
+  border: 1px solid #dee2e6;
+  color: #6c757d;
+  background-color: #fff;
+  transition: all 0.2s ease-in-out;
+}
+
+.pagination .page-item .page-link:hover {
+  background-color: #e9ecef;
+  border-color: #ced4da;
+}
+
+.pagination .page-item.active .page-link {
+  background-color: #007bff;
+  border-color: #007bff;
+  color: #fff;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 123, 255, 0.25);
+}
+
+.pagination .page-item.disabled .page-link {
+  color: #6c757d;
+  pointer-events: none;
+  background-color: #e9ecef;
+  border-color: #dee2e6;
+}
+
+/* Input group styling for search bar */
+.input-group .form-control.shadow-sm {
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075) !important;
+}
+
+.input-group {
+  max-width: 400px; /* Adjust to a normal size */
+}
+
+.input-group-text {
+  background-color: #ffffff;
+  border: 1px solid #ced4da;
+  border-right: none;
+  border-radius: 0.375rem 0 0 0.375rem;
+}
+
+.form-control.border-0.shadow-sm {
+  border: 1px solid #ced4da;
+  border-left: none;
+  border-radius: 0 0.375rem 0.375rem 0;
+}
+
+.form-control.border-0.shadow-sm:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Button styling */
+.btn-light.border {
+  border-color: #ced4da !important;
+}
+
+.btn-light.border:hover {
+  background-color: #e9ecef;
+}
+
+/* Modal backdrop for consistency */
+.modal.d-block {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 992px) {
+  .navbar-nav .nav-link {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .navbar-nav {
+    gap: 0.5rem;
+  }
+}
+
+.action-buttons {
+  display: flex;
+  gap: 6px; /* spacing between buttons */
+  align-items: center;
+}
