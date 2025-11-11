@@ -114,6 +114,18 @@ function InventoryManager() {
     <div className="container-fluid py-4 px-5 bg-white rounded-4 shadow-sm">
       {error && <div className="alert alert-danger">{error}</div>}
       {success && <div className="alert alert-success">{success}</div>}
+      {addModalError && (
+        <div className="alert alert-danger">{addModalError}</div>
+      )}
+      {addModalSuccess && (
+        <div className="alert alert-success">{addModalSuccess}</div>
+      )}
+      {editModalError && (
+        <div className="alert alert-danger">{editModalError}</div>
+      )}
+      {editModalSuccess && (
+        <div className="alert alert-success">{editModalSuccess}</div>
+      )}
 
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h3 className="mb-0">Product List</h3>
@@ -122,7 +134,7 @@ function InventoryManager() {
           className="btn btn-primary d-flex align-items-center"
         >
           <i className="bi bi-plus me-2"></i>
-          Add New Product
+          Add
         </button>
       </div>
 
@@ -254,12 +266,6 @@ function InventoryManager() {
               ></button>
             </div>
             <div className="modal-body">
-              {addModalError && (
-                <div className="alert alert-danger">{addModalError}</div>
-              )}
-              {addModalSuccess && (
-                <div className="alert alert-success">{addModalSuccess}</div>
-              )}
               <form onSubmit={handleAddProduct}>
                 <div className="mb-3">
                   <label htmlFor="productName" className="form-label">
@@ -329,12 +335,6 @@ function InventoryManager() {
               ></button>
             </div>
             <div className="modal-body">
-              {editModalError && (
-                <div className="alert alert-danger">{editModalError}</div>
-              )}
-              {editModalSuccess && (
-                <div className="alert alert-success">{editModalSuccess}</div>
-              )}
               <form onSubmit={handleUpdateProductSubmit}>
                 <div className="mb-3">
                   <label htmlFor="editProductName" className="form-label">

@@ -347,14 +347,14 @@ function SalesPage() {
             className="btn btn-light d-flex align-items-center me-2 border"
           >
             <i className="bi bi-download me-2"></i>
-            Download PDF
+            Report
           </button>
           <button
             onClick={() => setShowAddSaleModal(true)}
             className="btn btn-primary d-flex align-items-center"
           >
             <i className="bi bi-plus me-2"></i>
-            Add New Sale
+            Add
           </button>
         </div>
       </div>
