@@ -1,33 +1,34 @@
 import React, { useState, useEffect } from "react";
 import api from "../services/api";
+import html2pdf from "html2pdf.js";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
 
 const SalesReportPage = () => {
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Filter states (can be expanded based on actual filter requirements)
+  // Date filter options
+  const [dateFilter, setDateFilter] = useState("today");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [customerName, setCustomerName] = useState("");
   const [paymentMode, setPaymentMode] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
-  const [productCode, setProductCode] = useState("");
 
   const fetchReportData = async () => {
     setLoading(true);
     setError(null);
     try {
       const params = {
+        dateFilter,
         startDate,
         endDate,
-        customerName,
         paymentMode,
         paymentStatus,
-        productCode,
       };
-      const res = await api.get("/sales/download-report", params); // Use the api service
-      setReportData(res); // api service already returns data directly
+      const res = await api.get("/sales/download-report", params);
+      setReportData(res);
     } catch (err) {
       console.error("Error fetching sales report:", err);
       setError("Failed to fetch sales report data.");
@@ -38,19 +39,27 @@ const SalesReportPage = () => {
 
   useEffect(() => {
     fetchReportData();
-  }, []); // Fetch data on initial load
+  }, []);
 
   const handleApplyFilters = () => {
     fetchReportData();
   };
 
   const handlePrint = () => {
-    window.print();
+    const element = document.querySelector(".sales-report-page");
+    const opt = {
+      margin: 0.5,
+      filename: "sales_report.pdf",
+      image: { type: "jpeg", quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: "in", format: "a4", orientation: "portrait" },
+    };
+    html2pdf().set(opt).from(element).save();
   };
 
-  if (loading) return <div className="container mt-4">Loading report...</div>;
-  if (error) return <div className="container mt-4 text-danger">Error: {error}</div>;
-  if (!reportData) return <div className="container mt-4">No report data available.</div>;
+  if (loading) return <div className="container mt-4 text-center">Loading report...</div>;
+  if (error) return <div className="container mt-4 text-danger text-center">Error: {error}</div>;
+  if (!reportData) return <div className="container mt-4 text-center">No report data available.</div>;
 
   const {
     filters,
@@ -64,54 +73,79 @@ const SalesReportPage = () => {
     productAggregates,
   } = reportData;
 
-  const paidSales = sales.filter((sale) => sale.paymentStatus === "paid");
-  const unpaidSales = sales.filter((sale) => sale.paymentStatus === "unpaid");
+  const paidSales = sales.filter((s) => s.paymentStatus === "paid");
+  const unpaidSales = sales.filter((s) => s.paymentStatus === "unpaid");
 
   return (
     <div className="sales-report-page container mt-4">
-      <h1 className="text-center mb-4">Sales Report</h1>
+      {/* Hide filter UI in print */}
+      <style>
+        {`
+          @media print {
+            .no-print {
+              display: none !important;
+            }
+          }
+        `}
+      </style>
 
-      <div className="card mb-4 no-print">
-        <div className="card-header">
-          <h3 className="mb-0">Filters</h3>
-        </div>
+      {/* Header + Download Button */}
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <h1 className="fw-bold">Sales Report</h1>
+        <button className="btn btn-success no-print" onClick={handlePrint}>
+          <i className="bi bi-download me-1"></i> Download Report
+        </button>
+      </div>
+
+      {/* Filters Card (hidden in print) */}
+      <div className="card mb-4 shadow-sm no-print">
         <div className="card-body">
-          <div className="row g-3">
-            <div className="col-md-6 col-lg-4">
-              <label htmlFor="startDate" className="form-label">Start Date</label>
-              <input
-                type="date"
-                className="form-control"
-                id="startDate"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
-            <div className="col-md-6 col-lg-4">
-              <label htmlFor="endDate" className="form-label">End Date</label>
-              <input
-                type="date"
-                className="form-control"
-                id="endDate"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </div>
-            <div className="col-md-6 col-lg-4">
-              <label htmlFor="customerName" className="form-label">Customer Name</label>
-              <input
-                type="text"
-                className="form-control"
-                id="customerName"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-              />
-            </div>
-            <div className="col-md-6 col-lg-4">
-              <label htmlFor="paymentMode" className="form-label">Payment Mode</label>
+          <div className="d-flex flex-wrap align-items-end gap-3">
+            {/* Date Filter */}
+            <div>
+              <label className="form-label fw-semibold">Date Range</label>
               <select
                 className="form-select"
-                id="paymentMode"
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value)}
+              >
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="last30">Last 30 Days</option>
+                <option value="all">All</option>
+                <option value="custom">Custom Range</option>
+              </select>
+            </div>
+
+            {/* Show From/To when Custom selected */}
+            {dateFilter === "custom" && (
+              <>
+                <div>
+                  <label className="form-label fw-semibold">From</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="form-label fw-semibold">To</label>
+                  <input
+                    type="date"
+                    className="form-control"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Payment Mode */}
+            <div>
+              <label className="form-label fw-semibold">Payment Mode</label>
+              <select
+                className="form-select"
                 value={paymentMode}
                 onChange={(e) => setPaymentMode(e.target.value)}
               >
@@ -120,11 +154,12 @@ const SalesReportPage = () => {
                 <option value="online">Online</option>
               </select>
             </div>
-            <div className="col-md-6 col-lg-4">
-              <label htmlFor="paymentStatus" className="form-label">Payment Status</label>
+
+            {/* Payment Status */}
+            <div>
+              <label className="form-label fw-semibold">Payment Status</label>
               <select
                 className="form-select"
-                id="paymentStatus"
                 value={paymentStatus}
                 onChange={(e) => setPaymentStatus(e.target.value)}
               >
@@ -133,107 +168,70 @@ const SalesReportPage = () => {
                 <option value="unpaid">Unpaid</option>
               </select>
             </div>
-            <div className="col-md-6 col-lg-4">
-              <label htmlFor="productCode" className="form-label">Product Code</label>
-              <input
-                type="text"
-                className="form-control"
-                id="productCode"
-                value={productCode}
-                onChange={(e) => setProductCode(e.target.value)}
-              />
+
+            {/* Apply Button */}
+            <div>
+              <button className="btn btn-primary mt-2" onClick={handleApplyFilters}>
+                <i className="bi bi-search"></i> Apply
+              </button>
             </div>
-          </div>
-          <div className="d-flex justify-content-end mt-3">
-            <button className="btn btn-primary me-2" onClick={handleApplyFilters}>Apply Filters</button>
-            <button className="btn btn-secondary" onClick={handlePrint}>Print Report</button>
           </div>
         </div>
       </div>
 
-      {Object.keys(filters).length > 0 && (
-        <div className="filters-section mb-4">
-          <h3>Filters Applied</h3>
+      {/* Applied Filters (VISIBLE in print) */}
+      {filters && Object.keys(filters).length > 0 && (
+        <div className="alert alert-light border mb-4">
+          <h6 className="fw-bold mb-2"><i className="bi bi-funnel-fill"></i> Filters Applied</h6>
+          {filters.dateFilter && <p className="mb-1"><strong>Date Filter:</strong> {filters.dateFilter}</p>}
           {filters.startDate && filters.endDate && (
-            <p>
-              <strong>Date:</strong> {new Date(filters.startDate).toLocaleDateString()} &rarr;{" "}
+            <p className="mb-1">
+              <strong>Date Range:</strong> {new Date(filters.startDate).toLocaleDateString()} →{" "}
               {new Date(filters.endDate).toLocaleDateString()}
             </p>
           )}
-          {filters.customerName && <p><strong>Customer:</strong> {filters.customerName}</p>}
-          {filters.paymentMode && <p><strong>Mode:</strong> {filters.paymentMode}</p>}
-          {filters.paymentStatus && <p><strong>Status:</strong> {filters.paymentStatus}</p>}
-          {filters.productCode && <p><strong>Product Code:</strong> {filters.productCode}</p>}
+          {filters.paymentMode && <p className="mb-1"><strong>Payment Mode:</strong> {filters.paymentMode}</p>}
+          {filters.paymentStatus && <p className="mb-0"><strong>Status:</strong> {filters.paymentStatus}</p>}
         </div>
       )}
 
-      <h2 className="mb-3">Summary Overview</h2>
+      {/* Summary */}
+      <h4 className="fw-bold mb-3"><i className="bi bi-graph-up"></i> Summary Overview</h4>
       <div className="row g-3 mb-4">
-        <div className="col-md-6 col-lg-4">
-          <div className="summary-card total-qty">
-            <div className="icon bg-primary-subtle"><span className="text-primary">📦</span></div>
-            <div className="details">
-              <p>Total Quantity Sold</p>
-              <h4>{totalQuantityKg.toFixed(2)} Kg</h4>
+        {[
+          { title: "Total Quantity Sold", value: `${totalQuantityKg.toFixed(2)} Kg`, icon: "bi-box", color: "primary" },
+          { title: "Total Sales Value", value: `₹${totalValue.toFixed(2)}`, icon: "bi-currency-rupee", color: "success" },
+          { title: "Paid Amount", value: `₹${totalPaidValue.toFixed(2)}`, icon: "bi-check2-circle", color: "success" },
+          { title: "Unpaid Amount", value: `₹${totalUnpaidValue.toFixed(2)}`, icon: "bi-exclamation-circle", color: "warning" },
+          { title: "Cash Sales", value: `₹${totalCashValue.toFixed(2)}`, icon: "bi-cash", color: "secondary" },
+          { title: "Online Sales", value: `₹${totalOnlineValue.toFixed(2)}`, icon: "bi-globe", color: "info" },
+        ].map((item, idx) => (
+          <div key={idx} className="col-md-6 col-lg-4">
+            <div className={`card border-${item.color} shadow-sm`}>
+              <div className="card-body d-flex align-items-center">
+                <div className={`text-${item.color} fs-3 me-3`}>
+                  <i className={`bi ${item.icon}`}></i>
+                </div>
+                <div>
+                  <p className="mb-1 fw-semibold text-muted">{item.title}</p>
+                  <h5 className="fw-bold mb-0">{item.value}</h5>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="col-md-6 col-lg-4">
-          <div className="summary-card total-value">
-            <div className="icon bg-success-subtle"><span className="text-success">₹</span></div>
-            <div className="details">
-              <p>Total Sales Value</p>
-              <h4>₹{totalValue.toFixed(2)}</h4>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-6 col-lg-4">
-          <div className="summary-card paid">
-            <div className="icon bg-success-subtle"><span className="text-success">₹</span></div>
-            <div className="details">
-              <p>Paid Amount</p>
-              <h4>₹{totalPaidValue.toFixed(2)}</h4>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-6 col-lg-4">
-          <div className="summary-card unpaid">
-            <div className="icon bg-warning-subtle"><span className="text-warning">₹</span></div>
-            <div className="details">
-              <p>Unpaid Amount</p>
-              <h4>₹{totalUnpaidValue.toFixed(2)}</h4>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-6 col-lg-4">
-          <div className="summary-card cash">
-            <div className="icon bg-secondary-subtle"><span className="text-secondary">₹</span></div>
-            <div className="details">
-              <p>Cash Sales</p>
-              <h4>₹{totalCashValue.toFixed(2)}</h4>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-6 col-lg-4">
-          <div className="summary-card online">
-            <div className="icon bg-info-subtle"><span className="text-info">₹</span></div>
-            <div className="details">
-              <p>Online Sales</p>
-              <h4>₹{totalOnlineValue.toFixed(2)}</h4>
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      <h2 className="mb-3">Product-wise Summary</h2>
+      {/* Product Summary */}
+      <h4 className="fw-bold mb-3"><i className="bi bi-box-seam"></i> Product-wise Summary</h4>
       <div className="table-responsive mb-4">
-        <table className="table table-bordered table-striped">
-          <thead>
+        <table className="table table-bordered table-hover align-middle">
+          <thead className="table-light">
             <tr>
-              <th>Product Name/Code</th>
+              <th>Product</th>
               <th>Stock (Kg)</th>
               <th>Sold (Kg)</th>
-              <th>Remain Stock (Kg)</th>
+              <th>Remaining (Kg)</th>
               <th>Total Value</th>
               <th>Avg/Kg</th>
             </tr>
@@ -253,12 +251,13 @@ const SalesReportPage = () => {
         </table>
       </div>
 
-      <h2 className="mb-3">Paid Sales Data</h2>
+      {/* Paid Sales */}
+      <h4 className="fw-bold mb-3 text-success"><i className="bi bi-cash-stack"></i> Paid Sales Data</h4>
       <div className="table-responsive mb-4">
-        <table className="table table-bordered table-striped">
-          <thead>
+        <table className="table table-bordered table-striped align-middle">
+          <thead className="table-success">
             <tr>
-              <th>Sr</th>
+              <th>#</th>
               <th>Date</th>
               <th>Customer</th>
               <th>Product</th>
@@ -270,29 +269,30 @@ const SalesReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {paidSales.map((sale, index) => (
+            {paidSales.map((sale, i) => (
               <tr key={sale._id}>
-                <td>{index + 1}</td>
+                <td>{i + 1}</td>
                 <td>{new Date(sale.date).toLocaleDateString()}</td>
                 <td>{sale.customerName}</td>
                 <td>{sale.productName} - {sale.productCode}</td>
                 <td>{sale.quantityKg.toFixed(2)}</td>
-                <td>{sale.pricePerKg.toFixed(2)}</td>
-                <td>{sale.totalValue.toFixed(2)}</td>
-                <td>{sale.paymentMode}</td>
-                <td>{sale.paymentStatus}</td>
+                <td>₹{sale.pricePerKg.toFixed(2)}</td>
+                <td>₹{sale.totalValue.toFixed(2)}</td>
+                <td><span className="badge bg-success">{sale.paymentMode}</span></td>
+                <td><span className="badge bg-success">{sale.paymentStatus}</span></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <h2 className="mb-3">Unpaid Sales Data</h2>
-      <div className="table-responsive mb-4">
-        <table className="table table-bordered table-striped">
-          <thead>
+      {/* Unpaid Sales */}
+      <h4 className="fw-bold mb-3 text-warning"><i className="bi bi-exclamation-triangle"></i> Unpaid Sales Data</h4>
+      <div className="table-responsive mb-5">
+        <table className="table table-bordered table-striped align-middle">
+          <thead className="table-warning">
             <tr>
-              <th>Sr</th>
+              <th>#</th>
               <th>Date</th>
               <th>Customer</th>
               <th>Product</th>
@@ -304,17 +304,17 @@ const SalesReportPage = () => {
             </tr>
           </thead>
           <tbody>
-            {unpaidSales.map((sale, index) => (
+            {unpaidSales.map((sale, i) => (
               <tr key={sale._id}>
-                <td>{index + 1}</td>
+                <td>{i + 1}</td>
                 <td>{new Date(sale.date).toLocaleDateString()}</td>
                 <td>{sale.customerName}</td>
                 <td>{sale.productName} - {sale.productCode}</td>
                 <td>{sale.quantityKg.toFixed(2)}</td>
-                <td>{sale.pricePerKg.toFixed(2)}</td>
-                <td>{sale.totalValue.toFixed(2)}</td>
-                <td>{sale.paymentMode}</td>
-                <td>{sale.paymentStatus}</td>
+                <td>₹{sale.pricePerKg.toFixed(2)}</td>
+                <td>₹{sale.totalValue.toFixed(2)}</td>
+                <td><span className="badge bg-secondary">{sale.paymentMode}</span></td>
+                <td><span className="badge bg-warning text-dark">{sale.paymentStatus}</span></td>
               </tr>
             ))}
           </tbody>

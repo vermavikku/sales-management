@@ -365,64 +365,6 @@ function SalesPage() {
     }
   };
 
-  const handleDownloadReport = async () => {
-    setError(null);
-    setSuccess(null);
-    try {
-      let calculatedStartDate = filters.startDate;
-      let calculatedEndDate = filters.endDate;
-
-      if (dateRangeFilter === "today") {
-        calculatedStartDate = dayjs().format("YYYY-MM-DD");
-        calculatedEndDate = dayjs().format("YYYY-MM-DD");
-      } else if (dateRangeFilter === "all") {
-        calculatedStartDate = "";
-        calculatedEndDate = "";
-      } else if (dateRangeFilter === "yesterday") {
-        calculatedStartDate = dayjs().subtract(1, "day").format("YYYY-MM-DD");
-        calculatedEndDate = dayjs().subtract(1, "day").format("YYYY-MM-DD");
-      } else if (dateRangeFilter === "last7days") {
-        calculatedStartDate = dayjs().subtract(6, "day").format("YYYY-MM-DD");
-        calculatedEndDate = dayjs().format("YYYY-MM-DD");
-      } else if (dateRangeFilter === "lastmonth") {
-        calculatedStartDate = dayjs()
-          .subtract(1, "month")
-          .startOf("month")
-          .format("YYYY-MM-DD");
-        calculatedEndDate = dayjs()
-          .subtract(1, "month")
-          .endOf("month")
-          .format("YYYY-MM-DD");
-      }
-      // If "custom", startDate and endDate are already in filters state
-
-      const params = {
-        ...filters,
-        startDate: calculatedStartDate,
-        endDate: calculatedEndDate,
-      };
-      const response = await api.get("/sales/download-report", params, {
-        responseType: "blob", // Important for downloading files
-      });
-
-      // Create a blob from the response
-      const file = new Blob([response], { type: "application/pdf" });
-
-      // Create a link element, set the download attribute, and click it
-      const fileURL = URL.createObjectURL(file);
-      const link = document.createElement("a");
-      link.href = fileURL;
-      link.setAttribute("download", "sales_report_puppeteer.pdf");
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(fileURL); // Clean up the URL object
-
-      setSuccess("PDF report downloaded successfully!");
-    } catch (err) {
-      setError(err.message || "Failed to download PDF report.");
-    }
-  };
 
   const fetchRemainingStocks = async (productCode) => {
     setError(null);
@@ -607,13 +549,7 @@ function SalesPage() {
             <i className="bi bi-download me-2"></i>
             PDFKit Report
           </button> */}
-          <button
-            onClick={handleDownloadReport}
-            className="btn btn-light d-flex align-items-center me-2 border"
-          >
-            <i className="bi bi-download me-2"></i>
-            Report
-          </button>
+          {/* Removed handleDownloadReport button as per user's request for frontend PDF generation */}
           <button
             onClick={() => setShowAddSaleModal(true)}
             className="btn btn-primary d-flex align-items-center"
