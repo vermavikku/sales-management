@@ -1,4 +1,5 @@
 const Product = require("../models/Product");
+const Stock = require("../models/Stock"); // Import Stock model
 
 // @route   GET api/products
 // @desc    Get all products
@@ -109,6 +110,40 @@ exports.deleteProduct = async (req, res) => {
 
     await product.deleteOne();
     res.json({ msg: "Product removed" });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send("Server Error");
+  }
+};
+
+// @route   GET api/products/in-stock-today
+// @desc    Get products with available stock for today
+// @access  Public
+exports.getProductsInStockToday = async (req, res) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const stocks = await Stock.find({
+      date: today,
+      remainStock: { $gt: 0 },
+    }).populate("product_code"); // Populate product details
+
+    const productsInStock = stocks.map((stock) => ({
+      _id: stock.product_code._id,
+      name: stock.product_code.name,
+      code: stock.product_code.code,
+      remainStock: stock.remainStock, // Include remaining stock for display if needed
+    }));
+
+    // Remove duplicates if a product has multiple stock entries for today (though schema has unique index)
+    const uniqueProducts = Array.from(
+      new Map(
+        productsInStock.map((product) => [product._id.toString(), product])
+      ).values()
+    );
+
+    res.json(uniqueProducts);
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server Error");

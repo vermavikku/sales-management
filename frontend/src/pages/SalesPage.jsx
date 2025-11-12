@@ -6,6 +6,7 @@ import clsx from "clsx";
 function SalesPage() {
   const [sales, setSales] = useState([]);
   const [products, setProducts] = useState([]);
+  const [productsInStockToday, setProductsInStockToday] = useState([]); // New state for products in stock today
   const [dateRangeFilter, setDateRangeFilter] = useState("today"); // New state for date range filter
   const [filters, setFilters] = useState({
     startDate: dayjs().format("YYYY-MM-DD"), // Default to today
@@ -40,11 +41,24 @@ function SalesPage() {
   const [showEditSaleModal, setShowEditSaleModal] = useState(false);
   const [currentSale, setCurrentSale] = useState(null);
   const [showFilters, setShowFilters] = useState(false); // State to toggle filter visibility
+  const [showStockModal, setShowStockModal] = useState(false); // New state for stock modal
+  const [selectedProductForStock, setSelectedProductForStock] = useState("");
+  const [remainingStocks, setRemainingStocks] = useState([]);
+  const [newStockInput, setNewStockInput] = useState({
+    newStockKg: "",
+    date: dayjs().format("YYYY-MM-DD"),
+  });
+  const [selectedRemainingStockId, setSelectedRemainingStockId] =
+    useState(null);
+  const [totalCalculatedStock, setTotalCalculatedStock] = useState(0);
+  const [totalRemainingFromSelected, setTotalRemainingFromSelected] =
+    useState(0);
 
   useEffect(() => {
     fetchSales();
     fetchProducts();
-  }, [filters, dateRangeFilter, pagination.currentPage, pagination.limit]);
+    fetchProductsInStockToday(); // Fetch products in stock today
+  }, [filters, dateRangeFilter, pagination.currentPage, pagination.limit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchSales = async () => {
     setError(null);
@@ -83,8 +97,9 @@ function SalesPage() {
         page: pagination.currentPage,
         limit: pagination.limit,
       };
-      // Populate product with pricePerKg for display
+      console.log("Fetching sales with params:", params); // Debug log
       const data = await api.get("/sales", params);
+      console.log("Sales API response data:", data); // Debug log
       setSales(data.sales);
       setPagination((prev) => ({
         ...prev,
@@ -97,6 +112,7 @@ function SalesPage() {
       });
     } catch (err) {
       setError(err.message);
+      console.error("Error fetching sales:", err); // Debug log
     }
   };
 
@@ -106,6 +122,15 @@ function SalesPage() {
       setProducts(data.products); // Correctly access the products array
     } catch (err) {
       console.error("Error fetching products:", err.message);
+    }
+  };
+
+  const fetchProductsInStockToday = async () => {
+    try {
+      const data = await api.get("/products/in-stock-today");
+      setProductsInStockToday(data);
+    } catch (err) {
+      console.error("Error fetching products in stock today:", err.message);
     }
   };
 
@@ -207,6 +232,7 @@ function SalesPage() {
         date: dayjs().format("YYYY-MM-DD"),
       });
       fetchSales();
+      fetchProductsInStockToday(); // Refresh products in stock after a sale
     } catch (err) {
       setError(err.message);
     }
@@ -269,8 +295,13 @@ function SalesPage() {
   };
 
   const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
+    console.log(
+      `handlePageChange called: newPage=${newPage}, currentPage=${pagination.currentPage}, totalPages=${pagination.totalPages}`
+    ); // Debug log
+    if (newPage >= 1 && newPage <= Number(pagination.totalPages)) {
       setPagination((prev) => ({ ...prev, currentPage: newPage }));
+    } else {
+      console.log("Page change prevented: newPage out of bounds."); // Debug log
     }
   };
 
@@ -334,6 +365,233 @@ function SalesPage() {
     }
   };
 
+  const handleDownloadReport = async () => {
+    setError(null);
+    setSuccess(null);
+    try {
+      let calculatedStartDate = filters.startDate;
+      let calculatedEndDate = filters.endDate;
+
+      if (dateRangeFilter === "today") {
+        calculatedStartDate = dayjs().format("YYYY-MM-DD");
+        calculatedEndDate = dayjs().format("YYYY-MM-DD");
+      } else if (dateRangeFilter === "all") {
+        calculatedStartDate = "";
+        calculatedEndDate = "";
+      } else if (dateRangeFilter === "yesterday") {
+        calculatedStartDate = dayjs().subtract(1, "day").format("YYYY-MM-DD");
+        calculatedEndDate = dayjs().subtract(1, "day").format("YYYY-MM-DD");
+      } else if (dateRangeFilter === "last7days") {
+        calculatedStartDate = dayjs().subtract(6, "day").format("YYYY-MM-DD");
+        calculatedEndDate = dayjs().format("YYYY-MM-DD");
+      } else if (dateRangeFilter === "lastmonth") {
+        calculatedStartDate = dayjs()
+          .subtract(1, "month")
+          .startOf("month")
+          .format("YYYY-MM-DD");
+        calculatedEndDate = dayjs()
+          .subtract(1, "month")
+          .endOf("month")
+          .format("YYYY-MM-DD");
+      }
+      // If "custom", startDate and endDate are already in filters state
+
+      const params = {
+        ...filters,
+        startDate: calculatedStartDate,
+        endDate: calculatedEndDate,
+      };
+      const response = await api.get("/sales/download-report", params, {
+        responseType: "blob", // Important for downloading files
+      });
+
+      // Create a blob from the response
+      const file = new Blob([response], { type: "application/pdf" });
+
+      // Create a link element, set the download attribute, and click it
+      const fileURL = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = fileURL;
+      link.setAttribute("download", "sales_report_puppeteer.pdf");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(fileURL); // Clean up the URL object
+
+      setSuccess("PDF report downloaded successfully!");
+    } catch (err) {
+      setError(err.message || "Failed to download PDF report.");
+    }
+  };
+
+  const fetchRemainingStocks = async (productCode) => {
+    setError(null);
+    setRemainingStocks([]);
+    setSelectedRemainingStockId(null); // Reset selected on product change
+    setTotalRemainingFromSelected(0);
+    if (!productCode) {
+      return;
+    }
+    try {
+      const data = await api.get(`/stock/${productCode}`);
+      setRemainingStocks(data);
+      // If there are remaining stocks, select the first one by default
+      if (data.length > 0) {
+        setSelectedRemainingStockId(data[0]._id);
+        setTotalRemainingFromSelected(data[0].remainStock);
+      }
+    } catch (err) {
+      setError(err.message);
+      console.error("Error fetching remaining stocks:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedProductForStock) {
+      fetchRemainingStocks(selectedProductForStock);
+    } else {
+      setRemainingStocks([]);
+      setSelectedRemainingStockId(null);
+      setTotalRemainingFromSelected(0);
+    }
+  }, [selectedProductForStock]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let total = 0;
+    let currentRemaining = 0;
+
+    // Add new stock input
+    total += parseFloat(newStockInput.newStockKg) || 0;
+
+    // Add selected remaining stock
+    const selectedStock = remainingStocks.find(
+      (stock) => stock._id === selectedRemainingStockId
+    );
+    if (selectedStock) {
+      total += selectedStock.remainStock;
+      currentRemaining = selectedStock.remainStock;
+    }
+    setTotalCalculatedStock(total);
+    setTotalRemainingFromSelected(currentRemaining);
+  }, [newStockInput, remainingStocks, selectedRemainingStockId]);
+
+  const handleProductForStockChange = (e) => {
+    setSelectedProductForStock(e.target.value);
+    setNewStockInput({
+      newStockKg: "",
+      date: dayjs().format("YYYY-MM-DD"),
+    });
+    setSelectedRemainingStockId(null); // Reset selected remaining stock
+    setTotalRemainingFromSelected(0);
+  };
+
+  const handleNewStockInputChange = (e) => {
+    const { name, value } = e.target;
+    setNewStockInput((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectedRemainingStockChange = (id) => {
+    setSelectedRemainingStockId(id);
+    const selectedStock = remainingStocks.find((stock) => stock._id === id);
+    setTotalRemainingFromSelected(
+      selectedStock ? selectedStock.remainStock : 0
+    );
+  };
+
+  const handleAddStockSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    try {
+      if (!selectedProductForStock) {
+        setError("Please select a product.");
+        return;
+      }
+
+      const newStockAmount = parseFloat(newStockInput.newStockKg) || 0;
+      let currentTotalStock = 0;
+      let currentRemainStock = 0;
+
+      // Find the existing stock for the selected product and date
+      const existingStockForDate = remainingStocks.find(
+        (stock) =>
+          stock.product_code === selectedProductForStock &&
+          dayjs(stock.date).format("YYYY-MM-DD") === newStockInput.date
+      );
+
+      if (existingStockForDate) {
+        currentTotalStock = existingStockForDate.totalStock;
+        currentRemainStock = existingStockForDate.remainStock;
+      } else {
+        // If no existing stock for the date, and we are only updating, this is an error.
+        // However, the backend is designed to update if exists, or create if not.
+        // The user's latest feedback implies only update.
+        // For now, we'll assume the user wants to add to the *latest* stock if no exact date match.
+        // Re-evaluating this based on the user's feedback "add more stock to existing stock"
+        // and "Only update existing stock entries; do not create new ones."
+        // This means we should only update if there's an existing stock for the *selected date*.
+        // If there's no stock for the selected date, the backend will return 404.
+        // So, we don't need to fetch existing stock here to increment.
+        // The user's feedback "add more stock to existing stock" means they want to increment the values
+        // that are sent to the backend, not that the backend should do the incrementing.
+        // The backend will simply overwrite with the new totalStock and remainStock.
+        // So, we need to get the *current* stock for the selected date, add newStockAmount to it,
+        // and then send that new total to the backend.
+
+        // To get the current stock for the selected date, we need to make an API call.
+        // This is getting complicated. Let's simplify based on the user's last explicit instruction:
+        // "Only update existing stock entries; do not create new ones."
+        // And the current feedback "add more stock to existing stock".
+        // This implies that if a stock entry exists for the selected product and date,
+        // the new stock amount should be *added* to its totalStock and remainStock.
+
+        // Let's fetch the specific stock entry for the selected product and date
+        try {
+          const specificStock = await api.get(
+            `/stock/${selectedProductForStock}?date=${newStockInput.date}`
+          );
+          if (specificStock && specificStock.length > 0) {
+            currentTotalStock = specificStock[0].totalStock;
+            currentRemainStock = specificStock[0].remainStock;
+          } else {
+            setError(
+              "No existing stock found for this product on the selected date to add more to."
+            );
+            return;
+          }
+        } catch (fetchErr) {
+          setError(
+            fetchErr.message ||
+              "Error fetching specific stock for incrementing."
+          );
+          return;
+        }
+      }
+
+      const payload = {
+        productCode: selectedProductForStock,
+        totalStock: currentTotalStock + newStockAmount,
+        remainStock: currentRemainStock + newStockAmount,
+        date: newStockInput.date,
+      };
+
+      await api.post("/stock", payload);
+      setSuccess("Stock added successfully!");
+      setShowStockModal(false);
+      setSelectedProductForStock("");
+      setNewStockInput({
+        newStockKg: "",
+        date: dayjs().format("YYYY-MM-DD"),
+      });
+      setRemainingStocks([]);
+      setSelectedRemainingStockId(null);
+      setTotalRemainingFromSelected(0);
+      fetchProductsInStockToday(); // Refresh products in stock after adding stock
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
   return (
     <div className="container-fluid py-4 px-5 bg-white rounded-4 shadow-sm">
       {error && <div className="alert alert-danger">{error}</div>}
@@ -342,8 +600,15 @@ function SalesPage() {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h3 className="mb-0">All Sales</h3>
         <div className="d-flex">
-          <button
+          {/* <button
             onClick={handleDownloadPdf}
+            className="btn btn-light d-flex align-items-center me-2 border"
+          >
+            <i className="bi bi-download me-2"></i>
+            PDFKit Report
+          </button> */}
+          <button
+            onClick={handleDownloadReport}
             className="btn btn-light d-flex align-items-center me-2 border"
           >
             <i className="bi bi-download me-2"></i>
@@ -355,6 +620,13 @@ function SalesPage() {
           >
             <i className="bi bi-plus me-2"></i>
             Add
+          </button>
+          <button
+            onClick={() => setShowStockModal(true)}
+            className="btn btn-info d-flex align-items-center ms-2"
+          >
+            <i className="bi bi-box-seam me-2"></i>
+            Stock
           </button>
         </div>
       </div>
@@ -619,7 +891,10 @@ function SalesPage() {
             >
               <button
                 className="page-link"
-                onClick={() => handlePageChange(pagination.currentPage - 1)}
+                disabled={pagination.currentPage === 1}
+                onClick={() =>
+                  handlePageChange(Number(pagination.currentPage) - 1)
+                }
                 aria-label="Previous"
               >
                 <span aria-hidden="true">Previous</span>
@@ -637,7 +912,14 @@ function SalesPage() {
             >
               <button
                 className="page-link"
-                onClick={() => handlePageChange(pagination.currentPage + 1)}
+                disabled={pagination.currentPage === pagination.totalPages}
+                onClick={() => {
+                  console.log(
+                    "Next button clicked. New page will be:",
+                    Number(pagination.currentPage) + 1
+                  );
+                  handlePageChange(Number(pagination.currentPage) + 1);
+                }}
                 aria-label="Next"
               >
                 <span aria-hidden="true">Next</span>
@@ -695,9 +977,10 @@ function SalesPage() {
                     required
                   >
                     <option value="">Select a product</option>
-                    {products.map((product) => (
+                    {productsInStockToday.map((product) => (
                       <option key={product._id} value={product.code}>
-                        {product.code} - {product.name}
+                        {product.code} - {product.name} (Stock:{" "}
+                        {product.remainStock} Kg)
                       </option>
                     ))}
                   </select>
@@ -1057,6 +1340,168 @@ function SalesPage() {
                 >
                   Cancel
                 </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Stock Modal */}
+      <div
+        className={`modal ${showStockModal ? "d-block" : "d-none"}`}
+        tabIndex="-1"
+        role="dialog"
+      >
+        <div className="modal-dialog" role="document">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title">Manage Stock</h5>
+              <button
+                type="button"
+                className="btn-close"
+                aria-label="Close"
+                onClick={() => setShowStockModal(false)}
+              ></button>
+            </div>
+            <div className="modal-body">
+              {error && <div className="alert alert-danger">{error}</div>}
+              {success && <div className="alert alert-success">{success}</div>}
+              <form onSubmit={handleAddStockSubmit}>
+                <div className="mb-3">
+                  <label htmlFor="stockProductCode" className="form-label">
+                    Product:
+                  </label>
+                  <select
+                    id="stockProductCode"
+                    name="productCode"
+                    value={selectedProductForStock}
+                    onChange={handleProductForStockChange}
+                    className="form-select"
+                    required
+                  >
+                    <option value="">Select a product</option>
+                    {products.map((product) => (
+                      <option key={product._id} value={product.code}>
+                        {product.code} - {product.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {selectedProductForStock && (
+                  <>
+                    <h6 className="mt-4">Previous Remaining Stocks</h6>
+                    {remainingStocks.length > 0 ? (
+                      <div className="card p-3 mb-3">
+                        {remainingStocks.map((stock) => (
+                          <div
+                            key={stock._id}
+                            className="form-check d-flex justify-content-between align-items-center mb-2"
+                          >
+                            <div>
+                              <input
+                                type="radio"
+                                className="form-check-input"
+                                name="previousStock"
+                                id={`stock-${stock._id}`}
+                                checked={selectedRemainingStockId === stock._id}
+                                onChange={() =>
+                                  handleSelectedRemainingStockChange(stock._id)
+                                }
+                              />
+                              <label
+                                className="form-check-label ms-2"
+                                htmlFor={`stock-${stock._id}`}
+                              >
+                                {dayjs(stock.date).format("YYYY-MM-DD")}
+                                <br />
+                                <small className="text-muted">
+                                  Quantity: {stock.remainStock} Kg
+                                </small>
+                              </label>
+                            </div>
+                          </div>
+                        ))}
+                        <div className="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                          <strong>Total Remaining:</strong>
+                          <strong>
+                            {totalRemainingFromSelected.toFixed(2)} Kg
+                          </strong>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="alert alert-info">
+                        No previous remaining stocks found for this product.
+                      </div>
+                    )}
+
+                    <h6 className="mt-4">Add New Stock (Kg)</h6>
+                    <div className="mb-3">
+                      <input
+                        type="number"
+                        id="newStockKg"
+                        name="newStockKg"
+                        value={newStockInput.newStockKg}
+                        onChange={handleNewStockInputChange}
+                        min="0"
+                        step="0.01"
+                        className="form-control"
+                        required
+                      />
+                    </div>
+
+                    <div className="mb-3">
+                      <label htmlFor="newStockDate" className="form-label">
+                        Date:
+                      </label>
+                      <input
+                        type="date"
+                        id="newStockDate"
+                        name="date"
+                        value={newStockInput.date}
+                        onChange={handleNewStockInputChange}
+                        className="form-control"
+                        required
+                      />
+                    </div>
+
+                    <div className="card p-3 bg-light mt-4">
+                      <div className="d-flex justify-content-between mb-2">
+                        <span>Remaining Stock:</span>
+                        <span>{totalRemainingFromSelected.toFixed(2)} Kg</span>
+                      </div>
+                      <div className="d-flex justify-content-between mb-2">
+                        <span>New Stock:</span>
+                        <span>
+                          {(parseFloat(newStockInput.newStockKg) || 0).toFixed(
+                            2
+                          )}{" "}
+                          Kg
+                        </span>
+                      </div>
+                      <div className="d-flex justify-content-between border-top pt-2 fw-bold">
+                        <span>Total Stock:</span>
+                        <span>{totalCalculatedStock.toFixed(2)} Kg</span>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="d-flex justify-content-end mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowStockModal(false)}
+                    className="btn btn-secondary me-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-primary d-flex align-items-center"
+                  >
+                    <i className="bi bi-plus me-2"></i> Add Stock
+                  </button>
+                </div>
               </form>
             </div>
           </div>

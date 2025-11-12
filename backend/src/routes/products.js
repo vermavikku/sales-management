@@ -22,4 +22,9 @@ router.put("/:id", productController.updateProduct);
 // @access  Public
 router.delete("/:id", productController.deleteProduct);
 
+// @route   GET api/products/in-stock-today
+// @desc    Get products with available stock for today
+// @access  Public
+router.get("/in-stock-today", productController.getProductsInStockToday);
+
 module.exports = router;

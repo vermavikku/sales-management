@@ -12,6 +12,11 @@ router.get("/", saleController.getSales);
 // @access  Public
 router.get("/download-pdf", saleController.downloadSalesPdf);
 
+// @route   GET api/sales/download-report
+// @desc    Download sales data as PDF with filters using Puppeteer
+// @access  Public
+router.get("/download-report", saleController.downloadSalesPdfPuppeteer);
+
 // @route   POST api/sales
 // @desc    Add new sale
 // @access  Public
