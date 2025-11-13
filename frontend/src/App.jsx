@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import InventoryManager from "./pages/InventoryManager";
 import SalesPage from "./pages/SalesPage";
 import SalesReportPage from "./pages/SalesReportPage"; // Import the new report page
+import StocksPage from "./pages/StocksPage"; // Import the new StocksPage
 import "./styles.css";
 
 function App() {
-  const [activePage, setActivePage] = useState("sales"); // 'sales', 'products', or 'sales-report'
+  const [activePage, setActivePage] = useState("sales"); // 'sales', 'products', 'stocks', or 'sales-report'
 
   return (
     <div className="app-container">
@@ -52,6 +53,17 @@ function App() {
               <li className="nav-item">
                 <button
                   className={`nav-link d-flex align-items-center gap-2 ${
+                    activePage === "stocks" ? "active" : ""
+                  }`}
+                  onClick={() => setActivePage("stocks")}
+                >
+                  <i className="bi bi-boxes"></i>
+                  <span>Stocks</span>
+                </button>
+              </li>
+              <li className="nav-item">
+                <button
+                  className={`nav-link d-flex align-items-center gap-2 ${
                     activePage === "sales-report" ? "active" : ""
                   }`}
                   onClick={() => setActivePage("sales-report")}
@@ -67,6 +79,7 @@ function App() {
       <div className="main-content">
         {activePage === "sales" && <SalesPage />}
         {activePage === "products" && <InventoryManager />}
+        {activePage === "stocks" && <StocksPage />}
         {activePage === "sales-report" && <SalesReportPage />}
       </div>
     </div>

@@ -162,7 +162,8 @@ function InventoryManager() {
         </button>
       </div>
 
-      <div className="table-responsive mb-4">
+      {/* Desktop View Table */}
+      <div className="table-responsive mb-4 d-none d-md-block">
         <table className="table table-striped table-hover">
           <thead className="table-light">
             <tr>
@@ -204,6 +205,48 @@ function InventoryManager() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile View Cards */}
+      <div className="d-md-none mb-4">
+        {products.length === 0 ? (
+          <div className="alert alert-info text-center">No products found.</div>
+        ) : (
+          products.map((product, index) => (
+            <div key={product._id} className="card mb-3 shadow-sm">
+              <div className="card-body">
+                <h5 className="card-title mb-3">Product Details</h5>
+                {/* <div className="d-flex justify-content-between mb-1">
+                  <span className="text-muted">Sr No.</span>
+                  <span>{index + 1}</span>
+                </div> */}
+                <div className="d-flex justify-content-between mb-1">
+                  <span className="text-muted">Name</span>
+                  <span>{product.name}</span>
+                </div>
+                <div className="d-flex justify-content-between mb-3">
+                  <span className="text-muted">Code</span>
+                  <span>{product.code}</span>
+                </div>
+                <hr />
+                <div className="d-flex justify-content-end">
+                  <button
+                    className="btn btn-light btn-sm border me-2"
+                    onClick={() => handleEditProduct(product)}
+                  >
+                    <i className="bi bi-pencil"></i>
+                  </button>
+                  <button
+                    className="btn btn-light btn-sm border"
+                    onClick={() => handleDeleteProduct(product._id)}
+                  >
+                    <i className="bi bi-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <div className="d-flex justify-content-end align-items-center">
